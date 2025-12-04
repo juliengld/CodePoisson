@@ -31,13 +31,13 @@ private:
     Servo servo;
     bool  servo_ok;
 
-    static const int SERVO_PIN     = D0;
+    static const int SERVO_PIN     = 3;
     static const int pulseMin_us   = 500;   // SER0067
     static const int pulseMax_us   = 2500;  // SER0067
 
     // -------- DRIVER 2x PWM --------
-    static const int DRIVER_PWM_A  = D4;
-    static const int DRIVER_PWM_B  = D5;
+    static const int DRIVER_PWM_A  = 4;
+    static const int DRIVER_PWM_B  = 5;
 };
 
 #endif

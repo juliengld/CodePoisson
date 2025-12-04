@@ -1,4 +1,5 @@
 #include "CommandMotor.h"
+#include <Servo.h>
 
 CommandMotor::CommandMotor()
 {

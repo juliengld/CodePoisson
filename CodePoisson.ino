@@ -1,6 +1,8 @@
 #include "Capteurs.h"
+#include "CommandMotor.h"
 
 Capteurs capteurs;
+CommandMotor commandMotor;
 
 void setup() {
   Serial.begin(115200);

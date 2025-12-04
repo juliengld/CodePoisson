@@ -1,15 +1,35 @@
 #include "Capteurs.h"
 
-Capteurs::Capteurs()
-: bno(55, 0x28)
+#include "Capteurs.h"
+#include <string.h>
+
+static const int32_t BNO_SENSOR_ID = 55;
+
+// =====================
+//   Constructeur
+// =====================
+
+Capteurs::Capteurs(uint8_t bnoAddress,
+                   uint8_t inaAddress,
+                   uint8_t hihAddress,
+                   uint8_t msAddress)
+: bno_addr(bnoAddress)
+, ina_addr(inaAddress)
+, hih_addr(hihAddress)
+, ms_addr(msAddress)
+, bno(BNO_SENSOR_ID, bno_addr, &Wire)   // Adafruit_BNO055(id, addr, Wire)
+, ina(ina_addr, &Wire)                  // INA236(addr, Wire)
+, baro()                                // MS5837 : constructeur par défaut
 {
     memset(&data, 0, sizeof(CapteursData));
 
     imu_ok   = false;
     ina_ok   = false;
-    leak_ok  = true;   // HIH7121 ne crashe jamais, lecture I2C retourne juste false
+    leak_ok  = true;    // HIH7121 : lecture I2C juste false en cas d'erreur
     depth_ok = false;
 }
+
+
 
 bool Capteurs::begin()
 {
@@ -85,7 +105,7 @@ void Capteurs::calibrate(bool verbose)
             lastPrint = millis();
         }
 
-        if (sys >= 3 && gyro >= 3 && accel >= 3 && mag >= 2) break;
+        if (sys >= 3) break;
         delay(50);
     }
 
@@ -94,7 +114,7 @@ void Capteurs::calibrate(bool verbose)
 
 bool Capteurs::readHIH7121(float &humidity, float &temperature)
 {
-    Wire.requestFrom(HIH_ADDR, (uint8_t)4);
+    Wire.requestFrom(hih_addr, (uint8_t)4);
     if (Wire.available() < 4)
         return false;
 
@@ -118,19 +138,19 @@ void Capteurs::update()
     if (imu_ok)
     {
         sensors_event_t euler;
-        bno.getEvent(&euler, VECTOR_EULER);
+        bno.getEvent(&euler, Adafruit_BNO055::VECTOR_EULER);
         data.imu.yaw   = euler.orientation.x;
         data.imu.roll  = euler.orientation.y;
         data.imu.pitch = euler.orientation.z;
 
         sensors_event_t acc;
-        bno.getEvent(&acc, VECTOR_LINEARACCEL);
+        bno.getEvent(&acc, Adafruit_BNO055:: VECTOR_ACCELEROMETER);
         data.imu.ax = acc.acceleration.x;
         data.imu.ay = acc.acceleration.y;
         data.imu.az = acc.acceleration.z;
 
         sensors_event_t gyro;
-        bno.getEvent(&gyro, VECTOR_GYROSCOPE);
+        bno.getEvent(&gyro, Adafruit_BNO055:: VECTOR_GYROSCOPE);
         data.imu.gx = gyro.gyro.x;
         data.imu.gy = gyro.gyro.y;
         data.imu.gz = gyro.gyro.z;
@@ -146,10 +166,10 @@ void Capteurs::update()
     // ===== COURANT / TENSION =====
     if (ina_ok)
     {
-        data.power.busVoltage_V    = ina.readBusVoltage();
-        data.power.shuntVoltage_mV = ina.readShuntVoltage();
-        data.power.current_mA      = ina.readCurrent();
-        data.power.power_mW        = ina.readPower();
+        data.power.busVoltage_V    = ina.getBusVoltage();
+        data.power.shuntVoltage_mV = ina.getShuntVoltage();
+        data.power.current_mA      = ina.getCurrent();
+        data.power.power_mW        = ina.getPower();
     }
 
     // ===== HUMIDITE =====
@@ -178,12 +198,25 @@ void Capteurs::printDebug()
 {
     Serial.println("====================================");
 
-    if (imu_ok) {
-        Serial.print("IMU YawPitchRoll: ");
-        Serial.print(data.imu.yaw); Serial.print(" / ");
-        Serial.print(data.imu.pitch); Serial.print(" / ");
-        Serial.println(data.imu.roll);
-    } else Serial.println("IMU absente");
+   if (imu_ok) {
+    Serial.println("IMU :");
+    Serial.print("  Yaw / Pitch / Roll [deg] : ");
+    Serial.print(data.imu.yaw);   Serial.print(" / ");
+    Serial.print(data.imu.pitch); Serial.print(" / ");
+    Serial.println(data.imu.roll);
+
+    Serial.print("  Acc [m/s^2] : ");
+    Serial.print(data.imu.ax); Serial.print(" / ");
+    Serial.print(data.imu.ay); Serial.print(" / ");
+    Serial.println(data.imu.az);
+
+    Serial.print("  Gyro [rad/s] : ");
+    Serial.print(data.imu.gx); Serial.print(" / ");
+    Serial.print(data.imu.gy); Serial.print(" / ");
+    Serial.println(data.imu.gz);
+} else {
+    Serial.println("IMU absente");
+}
 
     if (ina_ok) {
         Serial.print("INA236: "); Serial.print(data.power.busVoltage_V);

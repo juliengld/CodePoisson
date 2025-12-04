@@ -59,7 +59,20 @@ struct CapteursData
 class Capteurs
 {
 public:
-    Capteurs();
+    /**
+     * Constructeur permettant de définir les adresses I2C des 4 capteurs.
+     *
+     *  - BNO055  → 0x28 (ADR → GND)
+     *  - INA236  → 0x40 (adresse DVA48 par défaut)
+     *  - HIH7121 → 0x27
+     *  - MS5837  → 0x76 (souvent 0x76 ou 0x77)
+     */
+    Capteurs(
+        uint8_t bnoAddress = 0x28,
+        uint8_t inaAddress = 0x40,
+        uint8_t hihAddress = 0x27,
+        uint8_t msAddress  = 0x76
+    );
 
     bool begin();
     void calibrate(bool verbose = true);
@@ -73,22 +86,26 @@ public:
     const CapteursData& getAllData()   const { return data; }
 
 private:
-    // Capteurs
-    Adafruit_BNO055 bno;
-    INA236          ina;
-    MS5837          baro;
+    // === Adresses I2C configurables (déclarées AVANT les objets) ===
+    uint8_t bno_addr;
+    uint8_t ina_addr;
+    uint8_t hih_addr;
+    uint8_t ms_addr;
 
+    // === Objets capteurs ===
+    Adafruit_BNO055 bno;   // IMU
+    INA236          ina;   // Courant / tension
+    MS5837          baro;  // Profondeur
+
+    // === Flags d'état ===
     bool imu_ok;
     bool ina_ok;
     bool leak_ok;
     bool depth_ok;
 
-    // HIH7121 : pas de librairie → adresse I2C = 0x27
-    const uint8_t HIH_ADDR = 0x27;
-
     CapteursData data;
 
-    // Lecture brute du HIH7121
+    // Lecture brute du HIH7121 (utilise hih_addr)
     bool readHIH7121(float &humidity, float &temperature);
 };
 
