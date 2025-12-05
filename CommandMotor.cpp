@@ -40,10 +40,10 @@ void CommandMotor::setServoAngle(float angleDeg)
     servo.write(angleDeg);
 }
 
-void CommandMotor::setDriverRaw(uint8_t pwmD4, uint8_t pwmD5)
+void CommandMotor::setDriverRaw(uint8_t pwm4, uint8_t pwm5)
 {
-    analogWrite(DRIVER_PWM_A, pwmD4);
-    analogWrite(DRIVER_PWM_B, pwmD5);
+    analogWrite(DRIVER_PWM_A, pwm4);
+    analogWrite(DRIVER_PWM_B, pwm5);
 }
 
 void CommandMotor::setDriverCommand(float command)
@@ -56,13 +56,13 @@ void CommandMotor::setDriverCommand(float command)
 
     if (command > 0.0f) {
         // Sens "avant" : D4 actif, D5 à 0
-        analogWrite(DRIVER_PWM_A, pwm);
+        analogWrite(DRIVER_PWM_A, pwm4);
         analogWrite(DRIVER_PWM_B, 0);
     }
     else if (command < 0.0f) {
         // Sens "arrière" : D5 actif, D4 à 0
         analogWrite(DRIVER_PWM_A, 0);
-        analogWrite(DRIVER_PWM_B, pwm);
+        analogWrite(DRIVER_PWM_B, pwm5);
     }
     else {
         // Stop
