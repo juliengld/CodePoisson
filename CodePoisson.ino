@@ -1,53 +1,63 @@
-#include "Capteurs.h"
+#include <Arduino.h>
 #include "CommandMotor.h"
 #include "Controller.h"
-#include "Wifi.h"  // On ajoute le Wifi
+#include "Capteurs.h"
 
-Capteurs capteurs;
+// Objets globaux
 CommandMotor commandMotor;
-// Le contrôleur a besoin du moteur, on lui passe à la construction
-Controller controller(commandMotor);
+Controller   controller(commandMotor);
+Capteurs     capteurs;
 
 void setup() {
-    Serial.begin(115200);
-    // while (!Serial) {} // Décommentez pour debug, commentez pour autonomie
+  Serial.begin(115200);
+  while (!Serial) {
+    ; // attendre ouverture port série (USB natif)
+  }
 
-    // 1. Init Capteurs
-    if (!capteurs.begin()) {
-        Serial.println("Erreur init capteurs, blocage.");
-        while (1);
-    }
-    capteurs.calibrate(true); 
+  Serial.println("=== DEMARRAGE POISSON  ===");
+  Serial.println("Baud 115200. Tape z/q/s/d/a puis ENTER.");
+  Serial.println();
 
-    // 2. Init Moteurs
-    Serial.println("Init CommandMotor...");
-    commandMotor.begin();
-    
-    // 3. Init Controller
-    controller.begin();
+  // ----- Init moteur + controller -----
+  Serial.println("[SETUP] Init CommandMotor...");
+  commandMotor.begin();
 
-    // 4. Init Wifi
-    setupWifi();
+  Serial.println("[SETUP] Init Controller...");
+  controller.begin();   // doit afficher [Controller] Initialisation
+
+  // ----- Init capteurs -----
+  Serial.println("[SETUP] Init Capteurs...");
+  if (!capteurs.begin()) {
+    Serial.println("[SETUP] ERREUR capteurs, blocage.");
+    while (1) { delay(10); }
+  }
+
+  Serial.println("[SETUP] Calibration capteurs...");
+  capteurs.calibrate(true);
+
+  Serial.println("[SETUP] OK. Pret.");
+  Serial.println();
 }
 
 void loop() {
-    // A. Mise à jour des capteurs
-    capteurs.update();
-    
-    // B. Gestion des commandes Wifi
-    // On passe 'controller' et 'capteurs' pour que le Wifi puisse les utiliser
-    gestionServeurWeb(controller, capteurs);
-
-    // C. Mise à jour de la logique robot (autonome ou manuel)
-    controller.update();
-
-    // Pas de delay() trop long ici sinon le Wifi lag
-    // Si tu veux un debug capteur, utilise un timer millis()
-    /*
-    static unsigned long lastPrint = 0;
-    if (millis() - lastPrint > 1000) {
-       capteurs.printDebug();
-       lastPrint = millis();
+  // 1) LECTURE DES TOUCHES SERIE
+  while (Serial.available() > 0) {
+    char c = Serial.read();
+    // On ignore juste les retours ligne
+    if (c == '\r' || c == '\n') {
+      continue;
     }
-    */
+
+    controller.onKey(c);
+  }
+
+  // 2) LOGIQUE CONTROLLER (AUTO plus tard)
+  controller.update();
+
+  // 3) CAPTEURS (on les met APRES pour ne pas bloquer la lecture série)
+  capteurs.update();
+  //capteurs.printDebug();
+
+  // 4) petite pause pour ne pas saturer le port série
+  delay(50);
 }

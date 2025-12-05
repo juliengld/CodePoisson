@@ -4,7 +4,7 @@
 //
 //  Created by Léa Manu on 05/12/2025.
 //
-#include "Controller.hpp"
+#include "Controller.h"
 
 // ---- Paramètres généraux ----
 static constexpr float kForwardSpeed = 0.8f;     // 80%
