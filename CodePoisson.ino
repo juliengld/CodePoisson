@@ -2,6 +2,7 @@
 #include "CommandMotor.h"
 #include "Controller.h"
 #include "Capteurs.h"
+#include "Wifi.h"
 
 // Objets globaux
 CommandMotor commandMotor;
@@ -35,6 +36,10 @@ void setup() {
   Serial.println("[SETUP] Calibration capteurs...");
   capteurs.calibrate(true);
 
+  // ----- Init Wifi -----
+  Serial.println("Init Wifi...");
+  setupWifi();
+
   Serial.println("[SETUP] OK. Pret.");
   Serial.println();
 }
@@ -58,6 +63,9 @@ void loop() {
   capteurs.update();
   //capteurs.printDebug();
 
-  // 4) petite pause pour ne pas saturer le port série
+  // 4) Wifi : traitement des requêtes HTTP
+  gestionServeurWeb(controller, capteurs);
+
+  // 5) petite pause pour ne pas saturer le port série
   delay(50);
 }
