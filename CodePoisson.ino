@@ -1,27 +1,53 @@
 #include "Capteurs.h"
 #include "CommandMotor.h"
+#include "Controller.h"
+#include "Wifi.h"  // On ajoute le Wifi
 
 Capteurs capteurs;
 CommandMotor commandMotor;
+// Le contrôleur a besoin du moteur, on lui passe à la construction
+Controller controller(commandMotor);
 
 void setup() {
-  Serial.begin(115200);
-  while (!Serial) {}
+    Serial.begin(115200);
+    // while (!Serial) {} // Décommentez pour debug, commentez pour autonomie
 
-  if (!capteurs.begin()) {
-    Serial.println("Erreur init capteurs, blocage.");
-    while (1);
-  }
+    // 1. Init Capteurs
+    if (!capteurs.begin()) {
+        Serial.println("Erreur init capteurs, blocage.");
+        while (1);
+    }
+    capteurs.calibrate(true); 
 
-  capteurs.calibrate(true);  // tu peux mettre false pour moins de 
-  
-  Serial.println("Init CommandMotor...");
-  commandMotor.begin();
+    // 2. Init Moteurs
+    Serial.println("Init CommandMotor...");
+    commandMotor.begin();
+    
+    // 3. Init Controller
+    controller.begin();
+
+    // 4. Init Wifi
+    setupWifi();
 }
 
 void loop() {
-  capteurs.update();      // lit IMU + courant/tension
-  capteurs.printDebug();  // affiche tout proprement
+    // A. Mise à jour des capteurs
+    capteurs.update();
+    
+    // B. Gestion des commandes Wifi
+    // On passe 'controller' et 'capteurs' pour que le Wifi puisse les utiliser
+    gestionServeurWeb(controller, capteurs);
 
-  delay(100);             // fréquence d’affichage ~10 Hz
+    // C. Mise à jour de la logique robot (autonome ou manuel)
+    controller.update();
+
+    // Pas de delay() trop long ici sinon le Wifi lag
+    // Si tu veux un debug capteur, utilise un timer millis()
+    /*
+    static unsigned long lastPrint = 0;
+    if (millis() - lastPrint > 1000) {
+       capteurs.printDebug();
+       lastPrint = millis();
+    }
+    */
 }
