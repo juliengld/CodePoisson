@@ -66,6 +66,6 @@ void loop() {
   // 4) Wifi : traitement des requêtes HTTP
   gestionServeurWeb(controller, capteurs);
 
-  // 5) petite pause pour ne pas saturer le port série
+  // 5A) petite pause pour ne pas saturer le port série
   delay(50);
 }
