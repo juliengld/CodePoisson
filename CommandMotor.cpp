@@ -74,22 +74,14 @@ void CommandMotor::ballastRemplir()
     float angleFullDeg = 180.0f; // valeur fictive, à ajuster
     setServoAngle(angleFullDeg);
 }
-
-void CommandMotor::ballastSuivreProfondeur(float targetDepth_m, float currentDepth_m)
+void CommandMotor::ballastEquilibre()
 {
     if (!servo_ok) {
         return;
     }
 
-    float err = targetDepth_m - currentDepth_m;
-
-    float Kp_simple = 5.0f; // à ajuster / remplacer par ton calcul géométrique
-    float angleCmdDeg = 90.0f + Kp_simple * err;  // 90° = position neutre fictive
-
-    if (angleCmdDeg < 0.0f)   angleCmdDeg = 0.0f;
-    if (angleCmdDeg > 180.0f) angleCmdDeg = 180.0f;
-
-    setServoAngle(angleCmdDeg);
+    float angleFullDeg = 30.0f; // valeur fictive, à ajuster
+    setServoAngle(angleFullDeg);
 }
 
 // ============================================================
