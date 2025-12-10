@@ -20,10 +20,6 @@ public:
     // Commande brute : valeurs PWM 0–255 pour chaque pin
     void setDriverRaw(uint8_t pwmD4, uint8_t pwmD5);
 
-    // Commande normalisée : -1.0 → -100% / 0 → stop / +1.0 → +100%
-    // Un seul sens actif à la fois :
-    //   >0 => D4 PWM, D5 = 0
-    //   <0 => D4 = 0,  D5 PWM
     void setDriverCommand(float command);
 
     // === GESTION BALLAST PAR SERVO ===

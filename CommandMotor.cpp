@@ -116,22 +116,13 @@ void CommandMotor::setDriverRaw(uint8_t pwm4, uint8_t pwm5)
 
 void CommandMotor::setDriverCommand(float command)
 {
-    // Saturation [-1 ; 1]
-    if (command >  1.0f) command = 1.0f;
-    if (command < -1.0f) command = -1.0f;
+    // Commande normalisée [0 ; 1]
+    if (command < 0.0f) command = 0.0f;
+    if (command > 1.0f) command = 1.0f;
 
-    uint8_t pwm = (uint8_t)(fabs(command) * 255.0f);
+    // Conversion en PWM 0–255
+    uint8_t pwm = (uint8_t)(command * 255.0f + 0.5f);
 
-    if (command > 0.0f) {
-        analogWrite(DRIVER_PWM_A, pwm);
-        analogWrite(DRIVER_PWM_B, 0);
-    }
-    else if (command < 0.0f) {
-        analogWrite(DRIVER_PWM_A, 0);
-        analogWrite(DRIVER_PWM_B, pwm);
-    }
-    else {
-        analogWrite(DRIVER_PWM_A, 0);
-        analogWrite(DRIVER_PWM_B, 0);
-    }
+    // Moteur UNIQUEMENT en marche avant : D4 = PWM, D5 = 0
+    setDriverRaw(pwm, 0);
 }

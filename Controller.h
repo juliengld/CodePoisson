@@ -36,7 +36,7 @@ public:
     void begin();
     void update();
 
-    // Entrée “clavier” (z, q, d, s, a)
+    // Entrée “clavier” (z, q, d, s, a, e, f)
     void onKey(char key);
 
     // Entrée générique (Wifi ou StateMachine)
