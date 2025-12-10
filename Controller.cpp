@@ -135,8 +135,12 @@ void Controller::turnRight(float speed)
 
 void Controller::stop()
 {
-    _motor.setDriverCommand(0.0f);
-    _motor.setServoAngle(kAngleStraight);
+    _motor.setDriverCommand(0.0f);        // Arrêt propulsion
+    _motor.setServoAngle(kAngleStraight); // Arrêt ballast
+    
+    
+    _motor.servoDirectionStop(); 
+    //Serial.println("[Controller] MANUAL → STOP (Propulsion + Direction)");
 }
 
 // ---- Gestion du mode autonome ----

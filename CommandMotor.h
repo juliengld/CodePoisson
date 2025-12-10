@@ -5,6 +5,8 @@
 #include <Servo.h>
 
 class CommandMotor
+
+
 {
 public:
     CommandMotor();
@@ -33,6 +35,8 @@ public:
 
     // Tourner le poisson / la queue à gauche
     void servoDirectionGauche();
+    // Tourner le poisson / remet la queue au centre
+    void servoDirectionStop();
 
 private:
     // -------- SERVO BALLAST --------

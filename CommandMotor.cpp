@@ -1,6 +1,10 @@
 #include "CommandMotor.h"
 #include <Servo.h>
 
+// Variable pour mémoriser l'état : 0 = Centre, 1 = Droite, -1 = Gauche
+static int etatDirection = 0; 
+static const int DUREE_MOUVEMENT = 1000; // Temps en ms (1 seconde)
+
 CommandMotor::CommandMotor()
 {
     servo_ok = false;
@@ -88,20 +92,81 @@ void CommandMotor::ballastEquilibre()
 //   GESTION SERVO DE DIRECTION (2e servo) – SQUELETTE SEULEMENT
 // ============================================================
 
+// ... (Haut du fichier inchangé) ...
+
+
+
 void CommandMotor::servoDirectionDroite()
 {
-    // TODO: implémenter l’angle / la commande pour tourner à droite
-    // Exemple futur :
-    //   if (!servoDirection_ok) return;
-    //   servoDirection.write(angleDroiteDeg);
+    // Si on est déjà braqué à droite, on ne fait rien (on attend que la touche soit relâchée)
+    if (etatDirection == 1) return;
+
+    // Si on était à gauche, on revient d'abord au centre (sécurité optionnelle)
+    if (etatDirection == -1) servoDirectionStop();
+
+    Serial.println("[Motor] Braquage DROITE en cours...");
+    
+    // 1. On tourne le FT90R (Vitesse sens horaire)
+    servoDirection.write(0); 
+    
+    // 2. On attend le temps qu'il fasse le mouvement
+    delay(DUREE_MOUVEMENT);
+    
+    // 3. On coupe le moteur (il arrête de forcer, mais la crémaillère est en position)
+    servoDirection.write(90); 
+    
+    // 4. On note l'état
+    etatDirection = 1; 
+    //Serial.println("[Motor] Braquage DROITE terminé (attente).");
 }
 
 void CommandMotor::servoDirectionGauche()
 {
-    // TODO: implémenter l’angle / la commande pour tourner à gauche
-    // Exemple futur :
-    //   if (!servoDirection_ok) return;
-    //   servoDirection.write(angleGaucheDeg);
+    // Si on est déjà braqué à gauche, on ne fait rien
+    if (etatDirection == -1) return;
+
+    // Si on était à droite, on revient d'abord au centre
+    if (etatDirection == 1) servoDirectionStop();
+
+    Serial.println("[Motor] Braquage GAUCHE en cours...");
+    
+    // 1. On tourne le FT90R (Vitesse sens anti-horaire)
+    servoDirection.write(180); 
+    
+    // 2. On attend
+    delay(DUREE_MOUVEMENT);
+    
+    // 3. On coupe
+    servoDirection.write(90); 
+    
+    // 4. On note l'état
+    etatDirection = -1;
+    //Serial.println("[Motor] Braquage GAUCHE terminé (attente).");
+}
+
+// Fonction pour revenir au centre (à ajouter)
+void CommandMotor::servoDirectionStop()
+{
+    if (etatDirection == 0) return; // Déjà au centre
+
+    Serial.println("[Motor] Retour au CENTRE...");
+
+    if (etatDirection == 1) {
+        // On était à Droite, on tourne à Gauche pour revenir
+        servoDirection.write(180);
+        delay(DUREE_MOUVEMENT);
+        servoDirection.write(90);
+    }
+    else if (etatDirection == -1) {
+        // On était à Gauche, on tourne à Droite pour revenir
+        servoDirection.write(0);
+        delay(DUREE_MOUVEMENT);
+        servoDirection.write(90);
+    }
+
+    // On est revenu au centre
+    etatDirection = 0;
+    Serial.println("[Motor] Retour CENTRE terminé.");
 }
 
 // ============================================================
