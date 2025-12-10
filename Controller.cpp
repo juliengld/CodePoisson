@@ -38,9 +38,9 @@ void Controller::update()
     }
 }
 
-
 void Controller::onKey(char key)
 {
+    // ------- Touches normales -------
     CommandType cmd = CommandType::NONE;
 
     switch (key)
@@ -50,13 +50,9 @@ void Controller::onKey(char key)
         case 'd': case 'D': cmd = CommandType::TURN_RIGHT; break;
         case 's': case 'S': cmd = CommandType::STOP; break;
         case 'a': case 'A': cmd = CommandType::TOGGLE_AUTONOMOUS; break;
-
-        // ---- AJOUT ----
-        case 'e': case 'E': cmd = CommandType::ASCEND; break;
         case 'f': case 'F': cmd = CommandType::DESCEND; break;
-
         default:
-            return; // on ignore les touches inconnues
+            return; // touche inconnue
     }
 
     onCommand(cmd);
@@ -80,8 +76,6 @@ void Controller::onCommand(CommandType cmd)
         if (cmd == CommandType::STOP) stop();
     }
 }
-
-
 
 void Controller::applyManualCommand(CommandType cmd)
 {
@@ -109,18 +103,13 @@ void Controller::applyManualCommand(CommandType cmd)
             Serial.println("[Controller] MANUAL → STOP");
             break;
 
-        // ---- AJOUT ----
-        case CommandType::ASCEND:
-            Serial.println("[Controller] MANUAL → ASCEND (ballastVider)");
-            _motor.ballastVider();
-            break;
-
         case CommandType::DESCEND:
             Serial.println("[Controller] MANUAL → DESCEND (ballastRemplir)");
             _motor.ballastRemplir();
             break;
 
-        default: break;
+        default:
+            break;
     }
 }
 

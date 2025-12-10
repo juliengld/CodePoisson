@@ -24,7 +24,6 @@ enum class CommandType {
     TURN_RIGHT,
     STOP,
     TOGGLE_AUTONOMOUS,
-    ASCEND,
     DESCEND
 };
 
