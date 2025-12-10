@@ -26,14 +26,33 @@ public:
     //   <0 => D4 = 0,  D5 PWM
     void setDriverCommand(float command);
 
+    // === GESTION BALLAST PAR SERVO ===
+    void ballastVider();                               // vider la ballast
+    void ballastRemplir();                             // remplir la ballast
+    void ballastSuivreProfondeur(float targetDepth_m, float currentDepth_m);
+
+    // === GESTION SERVO DE DIRECTION (2e servo) ===
+    // Tourner le poisson / la queue à droite
+    void servoDirectionDroite();
+
+    // Tourner le poisson / la queue à gauche
+    void servoDirectionGauche();
+
 private:
-    // -------- SERVO --------
+    // -------- SERVO BALLAST --------
     Servo servo;
     bool  servo_ok;
 
     static const int SERVO_PIN     = 3;
     static const int pulseMin_us   = 500;   // SER0067
     static const int pulseMax_us   = 2500;  // SER0067
+
+    // -------- SERVO DIRECTION --------
+    Servo servoDirection;          // 2e servomoteur pour tourner droite/gauche
+    bool  servoDirection_ok = false;
+
+    // À ajuster suivant ton câblage réel
+    static const int SERVO_DIRECTION_PIN = 6;
 
     // -------- DRIVER 2x PWM --------
     static const int DRIVER_PWM_A  = 4;

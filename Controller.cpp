@@ -1,154 +1,145 @@
-//
-//  controller.cpp
-//  Poisson_cpp
-//
-//  Created by Léa Manu on 05/12/2025.
-//
-#include "Controller.h"
+#include "CommandMotor.h"
+#include <Servo.h>
 
-// ---- Paramètres généraux ----
-static constexpr float kForwardSpeed = 0.8f;     // 80%
-static constexpr float kTurnSpeed    = 0.6f;     // 60%
-
-// Servo 0–180° → 90° = neutre
-static constexpr float kAngleStraight = 90.0f;
-static constexpr float kAngleLeft     = 90.0f - 25.0f;
-static constexpr float kAngleRight    = 90.0f + 25.0f;
-
-Controller::Controller(CommandMotor& motor)
-    : _motor(motor),
-      _mode(ControlMode::MANUAL),
-      _lastManualCmd(CommandType::STOP)
+CommandMotor::CommandMotor()
 {
+    servo_ok = false;
+    servoDirection_ok = false; // 2e servo non initialisé par défaut
 }
 
-void Controller::begin()
+bool CommandMotor::begin()
 {
-    Serial.println("[Controller] Initialisation");
-    stop();  // Sécurité
-}
-
-void Controller::update()
-{
-    if (_mode == ControlMode::AUTONOMOUS) {
-        // Future intégration :
-        // - StateMachine
-        // - Capteurs
-    }
-}
-
-void Controller::onKey(char key)
-{
-    CommandType cmd = CommandType::NONE;
-
-    switch (key)
-    {
-        case 'z': case 'Z': cmd = CommandType::FORWARD; break;
-        case 'q': case 'Q': cmd = CommandType::TURN_LEFT; break;
-        case 'd': case 'D': cmd = CommandType::TURN_RIGHT; break;
-        case 's': case 'S': cmd = CommandType::STOP; break;
-        case 'a': case 'A': cmd = CommandType::TOGGLE_AUTONOMOUS; break;
-        default:
-            return; // on ignore les touches inconnues
+    // ----- Servo ballast sur D0 -----
+    if (servo.attach(SERVO_PIN, pulseMin_us, pulseMax_us)) {
+        servo_ok = true;
+        Serial.println("[OK] Servo SER0067 attaché sur D0");
+    } else {
+        servo_ok = false;
+        Serial.println("[ERREUR] Impossible d’attacher le SER0067 sur D0");
     }
 
-    onCommand(cmd);
+    // ----- Servo direction sur SERVO_DIRECTION_PIN -----
+    // NOTE : seulement la structure ici, tu pourras compléter la logique plus tard
+    if (servoDirection.attach(SERVO_DIRECTION_PIN, pulseMin_us, pulseMax_us)) {
+        servoDirection_ok = true;
+        Serial.println("[OK] Servo direction attaché");
+    } else {
+        servoDirection_ok = false;
+        Serial.println("[ERREUR] Impossible d’attacher le servo direction");
+    }
+
+    // ----- Driver 2x PWM sur D4 / D5 -----
+    pinMode(DRIVER_PWM_A, OUTPUT);
+    pinMode(DRIVER_PWM_B, OUTPUT);
+
+    analogWrite(DRIVER_PWM_A, 0);
+    analogWrite(DRIVER_PWM_B, 0);
+
+    Serial.println("[OK] Driver PWM initialisé sur D4/D5");
+
+    // même si les servos échouent, on ne bloque pas
+    return true;
 }
 
-void Controller::onCommand(CommandType cmd)
+void CommandMotor::setServoAngle(float angleDeg)
 {
-    if (cmd == CommandType::TOGGLE_AUTONOMOUS) {
+    if (!servo_ok) return;
 
-        if (_mode == ControlMode::MANUAL) enterAutonomousMode();
-        else                               exitAutonomousMode();
+    if (angleDeg < 0.0f)   angleDeg = 0.0f;
+    if (angleDeg > 180.0f) angleDeg = 180.0f;
 
+    servo.write(angleDeg);
+}
+
+// ============================================================
+//   GESTION BALLAST PAR SERVO + CREMAILLERE
+// ============================================================
+
+void CommandMotor::ballastVider()
+{
+    if (!servo_ok) {
         return;
     }
 
-    if (_mode == ControlMode::MANUAL) {
-        applyManualCommand(cmd);
+    float angleEmptyDeg = 0.0f; // à ajuster avec ta géométrie
+    setServoAngle(angleEmptyDeg);
+}
+
+void CommandMotor::ballastRemplir()
+{
+    if (!servo_ok) {
+        return;
+    }
+
+    float angleFullDeg = 180.0f; // valeur fictive, à ajuster
+    setServoAngle(angleFullDeg);
+}
+
+void CommandMotor::ballastSuivreProfondeur(float targetDepth_m, float currentDepth_m)
+{
+    if (!servo_ok) {
+        return;
+    }
+
+    float err = targetDepth_m - currentDepth_m;
+
+    float Kp_simple = 5.0f; // à ajuster / remplacer par ton calcul géométrique
+    float angleCmdDeg = 90.0f + Kp_simple * err;  // 90° = position neutre fictive
+
+    if (angleCmdDeg < 0.0f)   angleCmdDeg = 0.0f;
+    if (angleCmdDeg > 180.0f) angleCmdDeg = 180.0f;
+
+    setServoAngle(angleCmdDeg);
+}
+
+// ============================================================
+//   GESTION SERVO DE DIRECTION (2e servo) – SQUELETTE SEULEMENT
+// ============================================================
+
+void CommandMotor::servoDirectionDroite()
+{
+    // TODO: implémenter l’angle / la commande pour tourner à droite
+    // Exemple futur :
+    //   if (!servoDirection_ok) return;
+    //   servoDirection.write(angleDroiteDeg);
+}
+
+void CommandMotor::servoDirectionGauche()
+{
+    // TODO: implémenter l’angle / la commande pour tourner à gauche
+    // Exemple futur :
+    //   if (!servoDirection_ok) return;
+    //   servoDirection.write(angleGaucheDeg);
+}
+
+// ============================================================
+//   DRIVER 2x PWM
+// ============================================================
+
+void CommandMotor::setDriverRaw(uint8_t pwm4, uint8_t pwm5)
+{
+    analogWrite(DRIVER_PWM_A, pwm4);
+    analogWrite(DRIVER_PWM_B, pwm5);
+}
+
+void CommandMotor::setDriverCommand(float command)
+{
+    // Saturation [-1 ; 1]
+    if (command >  1.0f) command = 1.0f;
+    if (command < -1.0f) command = -1.0f;
+
+    uint8_t pwm = (uint8_t)(fabs(command) * 255.0f);
+
+    if (command > 0.0f) {
+        analogWrite(DRIVER_PWM_A, pwm);
+        analogWrite(DRIVER_PWM_B, 0);
+    }
+    else if (command < 0.0f) {
+        analogWrite(DRIVER_PWM_A, 0);
+        analogWrite(DRIVER_PWM_B, pwm);
     }
     else {
-        // En autonome on ignore les commandes manuelles sauf STOP
-        if (cmd == CommandType::STOP) stop();
+        analogWrite(DRIVER_PWM_A, 0);
+        analogWrite(DRIVER_PWM_B, 0);
     }
 }
-
-void Controller::applyManualCommand(CommandType cmd)
-{
-    _lastManualCmd = cmd;
-
-    switch (cmd)
-    {
-        case CommandType::FORWARD:
-            goStraight(kForwardSpeed);
-            Serial.println("[Controller] MANUAL → FORWARD");
-            break;
-
-        case CommandType::TURN_LEFT:
-            turnLeft(kTurnSpeed);
-            Serial.println("[Controller] MANUAL → LEFT");
-            break;
-
-        case CommandType::TURN_RIGHT:
-            turnRight(kTurnSpeed);
-            Serial.println("[Controller] MANUAL → RIGHT");
-            break;
-
-        case CommandType::STOP:
-            stop();
-            Serial.println("[Controller] MANUAL → STOP");
-            break;
-
-        default: break;
-    }
-}
-
-// ---- Implémentation bas niveau ----
-
-void Controller::goStraight(float speed)
-{
-    _motor.setServoAngle(kAngleStraight);
-    _motor.setDriverCommand(speed);
-}
-
-void Controller::turnLeft(float speed)
-{
-    _motor.setServoAngle(kAngleLeft);
-    _motor.setDriverCommand(speed);
-}
-
-void Controller::turnRight(float speed)
-{
-    _motor.setServoAngle(kAngleRight);
-    _motor.setDriverCommand(speed);
-}
-
-void Controller::stop()
-{
-    _motor.setDriverCommand(0.0f);
-    _motor.setServoAngle(kAngleStraight);
-}
-
-// ---- Gestion du mode autonome ----
-
-void Controller::enterAutonomousMode()
-{
-    _mode = ControlMode::AUTONOMOUS;
-
-    Serial.println("[Controller] Mode AUTONOME ON");
-
-    // comportement simple par défaut
-    goStraight(0.5f);
-}
-
-void Controller::exitAutonomousMode()
-{
-    _mode = ControlMode::MANUAL;
-
-    Serial.println("[Controller] Mode MANUEL ON");
-
-    applyManualCommand(_lastManualCmd);
-}
-
-
