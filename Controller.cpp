@@ -50,7 +50,7 @@ void Controller::onKey(char key)
         case 'd': case 'D': cmd = CommandType::TURN_RIGHT; break;
         case 's': case 'S': cmd = CommandType::STOP; break;
         case 'a': case 'A': cmd = CommandType::TOGGLE_AUTONOMOUS; break;
-        case 'f': case 'F': cmd = CommandType::DESCEND; break;
+        //case 'f': case 'F': cmd = CommandType::DESCEND; break;
         default:
             return; // touche inconnue
     }
@@ -102,11 +102,11 @@ void Controller::applyManualCommand(CommandType cmd)
             stop();
             Serial.println("[Controller] MANUAL → STOP");
             break;
-
-        case CommandType::DESCEND:
-            Serial.println("[Controller] MANUAL → DESCEND (ballastRemplir)");
-            _motor.ballastRemplir();
-            break;
+// A voir mais pour le moment c'est commenté 
+        //case CommandType::DESCEND:
+        //    Serial.println("[Controller] MANUAL → DESCEND (ballastRemplir)");
+        //    _motor.ballastRemplir();
+        //    break;
 
         default:
             break;
