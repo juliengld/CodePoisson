@@ -23,7 +23,9 @@ enum class CommandType {
     TURN_LEFT,
     TURN_RIGHT,
     STOP,
-    TOGGLE_AUTONOMOUS
+    TOGGLE_AUTONOMOUS,
+    ASCEND,
+    DESCEND
 };
 
 class Controller
