@@ -39,42 +39,8 @@ void Controller::update()
 }
 
 
-// ESC [ A  → flèche haut
-// ESC [ B  → flèche bas
-
 void Controller::onKey(char key)
 {
-    static bool esc_detected = false;
-    static bool bracket_detected = false;
-
-    // Détection séquence ESC
-    if (key == 0x1B) {            // ESC
-        esc_detected = true;
-        bracket_detected = false;
-        return;
-    }
-    if (esc_detected && key == '[') {
-        bracket_detected = true;
-        return;
-    }
-    if (esc_detected && bracket_detected) {
-        esc_detected = false;
-        bracket_detected = false;
-
-        if (key == 'A') {
-            // flèche haut = ASCEND
-            onCommand(CommandType::ASCEND);
-            return;
-        }
-        if (key == 'B') {
-            // flèche bas = DESCEND
-            onCommand(CommandType::DESCEND);
-            return;
-        }
-        return;
-    }
-
-    // ------- Touches normales -------
     CommandType cmd = CommandType::NONE;
 
     switch (key)
@@ -84,8 +50,13 @@ void Controller::onKey(char key)
         case 'd': case 'D': cmd = CommandType::TURN_RIGHT; break;
         case 's': case 'S': cmd = CommandType::STOP; break;
         case 'a': case 'A': cmd = CommandType::TOGGLE_AUTONOMOUS; break;
+
+        // ---- AJOUT ----
+        case 'e': case 'E': cmd = CommandType::ASCEND; break;
+        case 'f': case 'F': cmd = CommandType::DESCEND; break;
+
         default:
-            return; // touche inconnue
+            return; // on ignore les touches inconnues
     }
 
     onCommand(cmd);
@@ -110,9 +81,7 @@ void Controller::onCommand(CommandType cmd)
     }
 }
 
-//
-// ---- MODIFICATION : ajout ASCEND / DESCEND ----
-//
+
 
 void Controller::applyManualCommand(CommandType cmd)
 {
@@ -140,18 +109,18 @@ void Controller::applyManualCommand(CommandType cmd)
             Serial.println("[Controller] MANUAL → STOP");
             break;
 
+        // ---- AJOUT ----
         case CommandType::ASCEND:
-            Serial.println("[Controller] MANUAL → ASCEND");
+            Serial.println("[Controller] MANUAL → ASCEND (ballastVider)");
             _motor.ballastVider();
             break;
 
         case CommandType::DESCEND:
-            Serial.println("[Controller] MANUAL → DESCEND");
+            Serial.println("[Controller] MANUAL → DESCEND (ballastRemplir)");
             _motor.ballastRemplir();
             break;
 
-        default:
-            break;
+        default: break;
     }
 }
 
