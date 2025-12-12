@@ -1,6 +1,27 @@
 #include "CommandMotor.h"
 #include "Capteurs.h"
+#include "AsservProfond.h"
 
+// Implémentation du constructeur
+AsservProfond::AsservProfond(CommandMotor* motorPtr, Capteurs* capteursPtr) {
+    _motor = motorPtr;
+    _capteurs = capteursPtr;
+    
+    // Valeurs par défaut (à ajuster selon ton robot)
+    _gainProportionnel = 10.0f; 
+    _angleNeutre = 180.0f;
+}
+
+// Implémentation des méthodes internes (wrappers)
+float AsservProfond::getProfondeur() {
+    // Appel à la fonction réelle de ta classe Capteurs
+    return _capteurs->lireProfondeur(); // Nom à adapter selon ta librairie Capteurs
+}
+
+void AsservProfond::setServoAngle(float angle) {
+    // Appel à la fonction réelle de ta classe CommandMotor
+    _motor->setAngle(angle); // Nom à adapter selon ta librairie CommandMotor
+}
 // Définitions des constantes (à ajuster selon ton robot)
 #define PROFONDEUR_MAX 180.0f
 #define ANGLE_NEUTRE 180.0f  // Position du servo pour maintenir la profondeur (ou l'horizontale)
