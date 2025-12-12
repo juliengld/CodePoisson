@@ -27,6 +27,7 @@ public:
     // === GESTION BALLAST PAR SERVO ===
     void ballastVider();                               // vider la ballast
     void ballastRemplir();                             // remplir la ballast
+    void ballastEquilibre();
     void ballastSuivreProfondeur(float targetDepth_m, float currentDepth_m);
 
     // === GESTION SERVO DE DIRECTION (2e servo) ===

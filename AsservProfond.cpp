@@ -14,13 +14,14 @@ AsservProfond::AsservProfond(CommandMotor* motorPtr, Capteurs* capteursPtr) {
 
 // Implémentation des méthodes internes (wrappers)
 float AsservProfond::getProfondeur() {
-    // Appel à la fonction réelle de ta classe Capteurs
-    return _capteurs->lireProfondeur(); // Nom à adapter selon ta librairie Capteurs
+    // CORRECTION : On accède à la structure de données du capteur
+    return _capteurs->getDepthData().depth_m;
 }
 
+
 void AsservProfond::setServoAngle(float angle) {
-    // Appel à la fonction réelle de ta classe CommandMotor
-    _motor->setAngle(angle); // Nom à adapter selon ta librairie CommandMotor
+    // CORRECTION : Le vrai nom dans CommandMotor est setServoAngle
+    _motor->setServoAngle(angle); 
 }
 // Définitions des constantes (à ajuster selon ton robot)
 #define PROFONDEUR_MAX 180.0f
