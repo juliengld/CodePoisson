@@ -3,7 +3,7 @@
 
 // Variable pour mémoriser l'état : 0 = Centre, 1 = Droite, -1 = Gauche
 static int etatDirection = 0; 
-static const int DUREE_MOUVEMENT = 3000; // Temps en ms (1 seconde)
+static const int DUREE_MOUVEMENT = 500; // Temps en ms (1 seconde)
 
 CommandMotor::CommandMotor()
 {
