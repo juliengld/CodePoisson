@@ -16,33 +16,46 @@ void traiterCommande(String req, Controller &ctrl);
 // ============================================================
 //   INITIALISATION WIFI (POINT D'ACCES)
 // ============================================================
+// DANS Wifi.cpp
+
 void setupWifi() {
   // Vérif module WiFi
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("[Wifi] Module absent!");
-    while (true) {
-      delay(1000);
-    }
+    while (true) delay(1000);
   }
 
-  Serial.print("[Wifi] Demarrage point d'acces: ");
+  // ----------------------------------------------------
+  // NOUVELLE LOGIQUE : CONNEXION AU PC (MODE STATION)
+  // ----------------------------------------------------
+  Serial.print("[Wifi] Tentative de connexion a : ");
   Serial.println(ssid);
 
-  // Lancement du point d'accès
-  int res = WiFi.beginAP(ssid, pass);
+  // On lance la connexion
+  WiFi.begin(ssid, pass);
 
-  if (res != WL_AP_LISTENING && res != WL_AP_CONNECTED) {
-    Serial.print("[Wifi] Echec beginAP, code = ");
-    Serial.println(res);
-    while (true) {
-      delay(1000);
+  // On attend que le statut passe à "CONNECTED"
+  // On fait clignoter des points ... dans le moniteur série
+  int tentatives = 0;
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+    tentatives++;
+    
+    // Si ça prend plus de 10 secondes, petit message d'aide
+    if (tentatives > 20) {
+        Serial.println("\n[Wifi] Connexion longue... Verifiez que le PC est en 2.4GHz !");
+        tentatives = 0;
     }
   }
 
-  // Petit délai pour laisser le temps au module de se stabiliser
-  delay(2000);
+  Serial.println("");
+  Serial.println("[Wifi] CONNECTE au PC !");
 
+  // Démarrage du serveur web
   server.begin();
+  
+  // Affiche la nouvelle IP (C'est le PC qui l'a donnée)
   printWifiStatus();
 }
 
