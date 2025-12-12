@@ -121,15 +121,28 @@ void Controller::goStraight(float speed)
     _motor.setDriverCommand(speed);
 }
 
+
 void Controller::turnLeft(float speed)
 {
-    _motor.setServoAngle(kAngleLeft);
+    // Ancienne ligne (à commenter ou supprimer) :
+    // _motor.setServoAngle(kAngleLeft);
+    
+    // NOUVELLE LIGNE : Appelle la fonction du FT90R
+    _motor.servoDirectionGauche();
+    
+    // On active aussi le moteur principal si tu veux avancer en tournant
     _motor.setDriverCommand(speed);
 }
 
 void Controller::turnRight(float speed)
 {
-    _motor.setServoAngle(kAngleRight);
+    // Ancienne ligne (à commenter ou supprimer) :
+    // _motor.setServoAngle(kAngleRight);
+    
+    // NOUVELLE LIGNE : Appelle la fonction du FT90R
+    _motor.servoDirectionDroite();
+    
+    // On active aussi le moteur principal
     _motor.setDriverCommand(speed);
 }
 
