@@ -35,6 +35,11 @@ void StateMachine::begin()
 
 void StateMachine::update()
 {
+
+    if (_emergency != EmergencyState::NONE && _currentState != FishState::EMERGENCY) {
+        changeState(FishState::EMERGENCY);
+    }
+
     if (!_isRunning) return;
     
     // Machine à états principale
@@ -58,6 +63,10 @@ void StateMachine::update()
             
         case FishState::ASCENDING:
             updateAscending();
+            break;
+
+        case FishState::EMERGENCY:
+            updateEmergency();
             break;
             
         case FishState::COMPLETED:
@@ -173,6 +182,31 @@ void StateMachine::updateAscending()
     }
 }
 
+void StateMachine::updateEmergency()
+{
+    // On remonte coûte que coûte
+    if (getElapsedTime() == 0) {
+        Serial.println("[StateMachine] === EMERGENCY ===");
+        if (_emergency == EmergencyState::LEAK) {
+            Serial.println("[StateMachine] Cause: LEAK");
+        } else if (_emergency == EmergencyState::BATTERY) {
+            Serial.println("[StateMachine] Cause: LOW BATTERY");
+        }
+    }
+
+    // Remontée : ballast en vidange
+    _motor.ballastVider();
+
+    // Sécurité propulsion / direction (à ajuster selon ton choix)
+    _motor.setServoAngle(90.0f);     // neutre
+    _motor.setDriverCommand(0.0f);   // stop moteur principal
+
+    // Option : tu peux décider de passer en COMPLETED après X secondes,
+    // ou rester en EMERGENCY jusqu'à reset manuel.
+    // Ici : on reste en EMERGENCY (le plus safe).
+}
+
+
 void StateMachine::updateCompleted()
 {
     if (getElapsedTime() == 0) {
@@ -213,5 +247,7 @@ void StateMachine::printStateChange(FishState newState)
         case FishState::TURNING:    Serial.println("TURNING"); break;
         case FishState::ASCENDING:  Serial.println("ASCENDING"); break;
         case FishState::COMPLETED:  Serial.println("COMPLETED"); break;
+        case FishState::EMERGENCY:  Serial.println("EMERGENCY"); break;
+
     }
 }

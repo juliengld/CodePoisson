@@ -151,8 +151,8 @@ void envoieDonneesJSON(WiFiClient &client, Controller &ctrl, Capteurs &caps) {
   // Power & Environment
   client.print("\"v\":");   client.print(pwr.busVoltage_V);      client.print(",");
   client.print("\"p\":");   client.print(depth.depth_m);         client.print(","); // Profondeur
-  client.print("\"hum\":"); client.print(leak.humidity_percent); client.print(",");
-  client.print("\"leak\":"); client.print(leak.leakDetected ? "true" : "false"); client.print(",");
+  client.print("\"leak\":");        client.print(leak.leakLatched ? "true" : "false"); client.print(",");
+  client.print("\"leakLatched\":"); client.print(leak.leakLatched ? "true" : "false"); client.print(",");
 
   // État du controleur
   client.print("\"auto\":"); 

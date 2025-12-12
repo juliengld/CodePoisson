@@ -3,11 +3,21 @@
 #include "Controller.h"
 #include "Capteurs.h"
 #include "Wifi.h"
+#include "Safety.h"
 
 // Objets globaux
 CommandMotor commandMotor;
+Safety safety;
 Controller   controller(commandMotor);
-Capteurs     capteurs;
+Capteurs capteurs(
+  0x28,    // BNO055
+  0x40,    // INA batterie (SoC)
+  0x41,    // INA mesure
+  0x27,    // HIH
+  0x76,    // MS5837
+  2200.0f  // capacité batterie (mAh)
+);
+
 
 void setup() {
   Serial.begin(115200);
@@ -62,6 +72,8 @@ void loop() {
   // 3) CAPTEURS (on les met APRES pour ne pas bloquer la lecture série)
   capteurs.update();
   //capteurs.printDebug();
+
+  EmergencyState e = safety.update(capteurs);
 
   // 4) Wifi : traitement des requêtes HTTP
   gestionServeurWeb(controller, capteurs);

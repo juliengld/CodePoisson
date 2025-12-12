@@ -10,6 +10,7 @@
 
 #include <Arduino.h>
 #include "CommandMotor.h"
+#include "Safety.h"
 
 // États possibles du poisson
 enum class FishState
@@ -19,7 +20,8 @@ enum class FishState
     MOVING,         // Navigation à profondeur stable
     TURNING,        // Demi-tour
     ASCENDING,      // Remontée
-    COMPLETED       // Mission terminée
+    COMPLETED,       // Mission terminée
+    EMERGENCY
 };
 
 class StateMachine
@@ -41,6 +43,10 @@ public:
     void setTargetDepth(float depth) { _targetDepth = depth; }
     void setMoveDuration(unsigned long durationMs) { _moveDuration = durationMs; }
     void setTurnDuration(unsigned long durationMs) { _turnDuration = durationMs; }
+
+    //Emergency
+    void setEmergency(EmergencyState e) { _emergency = e; }
+    EmergencyState getEmergency() const { return _emergency; }
     
 private:
     CommandMotor& _motor;
@@ -70,6 +76,10 @@ private:
     // Helpers
     unsigned long getElapsedTime() const;
     void printStateChange(FishState newState);
+
+    //Emergency
+     EmergencyState _emergency = EmergencyState::NONE;
+    void updateEmergency();
 };
 
 #endif /* StateMachine_h */
