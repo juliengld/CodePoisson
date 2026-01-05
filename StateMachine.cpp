@@ -1,28 +1,27 @@
-//
-//  StateMachine.cpp
-//  Poisson_cpp
-//
-//  Created by Léa Manu on 10/12/2025.
-//
-
 #include "StateMachine.h"
 
 // ---- Paramètres par défaut ----
-static constexpr float kDefaultTargetDepth = 1.0f;      // 1 mètre de profondeur
-static constexpr unsigned long kDefaultMoveDuration = 10000;  // 10 secondes d'avancement
-static constexpr unsigned long kDefaultTurnDuration = 3000;   // 3 secondes de demi-tour
+static constexpr float kDefaultTargetDepth = 1.0f;
+static constexpr unsigned long kDefaultMoveDuration = 10000;
+static constexpr unsigned long kDefaultTurnDuration = 3000;
 
-static constexpr float kMoveSpeed = 0.7f;      // Vitesse d'avancement
-static constexpr float kTurnSpeed = 0.6f;      // Vitesse de rotation
+static constexpr float kMoveSpeed = 0.7f;
+static constexpr float kTurnSpeed = 0.6f;
 
-StateMachine::StateMachine(CommandMotor& motor)
+// évite le bug getElapsedTime()==0
+static constexpr unsigned long kEntryWindowMs = 50;
+
+StateMachine::StateMachine(CommandMotor& motor, Capteurs& capteurs, Safety& safety)
     : _motor(motor),
+      _capteurs(capteurs),
+      _safety(safety),
       _currentState(FishState::IDLE),
       _isRunning(false),
       _stateStartTime(0),
       _targetDepth(kDefaultTargetDepth),
       _moveDuration(kDefaultMoveDuration),
-      _turnDuration(kDefaultTurnDuration)
+      _turnDuration(kDefaultTurnDuration),
+      _emergency(EmergencyState::NONE)
 {
 }
 
@@ -31,91 +30,74 @@ void StateMachine::begin()
     Serial.println("[StateMachine] Initialisation");
     _currentState = FishState::IDLE;
     _isRunning = false;
+    _stateStartTime = millis();
+    _emergency = EmergencyState::NONE;
+}
+
+void StateMachine::setEmergency(EmergencyState e)
+{
+    // latch
+    if (_emergency == EmergencyState::NONE) {
+        _emergency = e;
+    }
 }
 
 void StateMachine::update()
 {
+    // ✅ Safety centralise fuite + batterie + latch + delay
+    EmergencyState e = _safety.update(_capteurs);
+    if (e != EmergencyState::NONE) {
+        setEmergency(e);
+    }
 
     if (_emergency != EmergencyState::NONE && _currentState != FishState::EMERGENCY) {
         changeState(FishState::EMERGENCY);
     }
 
-    if (!_isRunning) return;
-    
-    // Machine à états principale
+    // on laisse EMERGENCY tourner même si mission pas lancée
+    if (!_isRunning && _currentState != FishState::EMERGENCY) return;
+
     switch (_currentState)
     {
-        case FishState::IDLE:
-            updateIdle();
-            break;
-            
-        case FishState::DESCENDING:
-            updateDescending();
-            break;
-            
-        case FishState::MOVING:
-            updateMoving();
-            break;
-            
-        case FishState::TURNING:
-            updateTurning();
-            break;
-            
-        case FishState::ASCENDING:
-            updateAscending();
-            break;
-
-        case FishState::EMERGENCY:
-            updateEmergency();
-            break;
-            
-        case FishState::COMPLETED:
-            updateCompleted();
-            break;
+        case FishState::IDLE:       updateIdle(); break;
+        case FishState::DESCENDING: updateDescending(); break;
+        case FishState::MOVING:     updateMoving(); break;
+        case FishState::TURNING:    updateTurning(); break;
+        case FishState::ASCENDING:  updateAscending(); break;
+        case FishState::EMERGENCY:  updateEmergency(); break;
+        case FishState::COMPLETED:  updateCompleted(); break;
     }
 }
 
 void StateMachine::startMission()
 {
-    Serial.println("[StateMachine] === DÉMARRAGE MISSION AUTONOME ===");
+    Serial.println("[StateMachine] === START MISSION ===");
     _isRunning = true;
     changeState(FishState::DESCENDING);
 }
 
 void StateMachine::stopMission()
 {
-    Serial.println("[StateMachine] === ARRÊT MISSION ===");
+    Serial.println("[StateMachine] === STOP MISSION ===");
     _isRunning = false;
     _motor.setDriverCommand(0.0f);
     changeState(FishState::IDLE);
 }
 
 // ==========================================
-// GESTION DES ÉTATS
+// États
 // ==========================================
 
 void StateMachine::updateIdle()
 {
-    // En attente, rien à faire
-    // La mission démarre via startMission()
+    // rien
 }
 
 void StateMachine::updateDescending()
 {
-    // TODO: Intégration avec le fichier d'asservissement de plongée
-    // Pour l'instant : simulation simple
-    
     Serial.println("[StateMachine] DESCENTE en cours...");
-    
-    // Appel de la fonction de descente du ballast
     _motor.ballastRemplir();
-    
-    // TODO: Ton collègue devra implémenter quelque chose comme :
-    // if (AsservissementPlongeon::isAtDepth(_targetDepth)) {
-    //     changeState(FishState::MOVING);
-    // }
-    
-    // SIMULATION : après 5 secondes, on considère qu'on est à la bonne profondeur
+
     if (getElapsedTime() > 5000) {
         Serial.println("[StateMachine] Profondeur cible atteinte !");
         changeState(FishState::MOVING);
@@ -124,17 +106,12 @@ void StateMachine::updateDescending()
 
 void StateMachine::updateMoving()
 {
-    // Avancer tout droit pendant _moveDuration
-    
-    if (getElapsedTime() == 0) {
+    if (getElapsedTime() < kEntryWindowMs) {
         Serial.println("[StateMachine] AVANCEMENT démarré");
-        _motor.setServoAngle(90.0f);  // Tout droit
+        _motor.setServoAngle(90.0f);
         _motor.setDriverCommand(kMoveSpeed);
     }
-    
-    // TODO: Le PID de profondeur devrait tourner en continu ici
-    // AsservissementPlongeon::maintainDepth(_targetDepth);
-    
+
     if (getElapsedTime() >= _moveDuration) {
         Serial.println("[StateMachine] Fin de l'avancement");
         changeState(FishState::TURNING);
@@ -143,18 +120,12 @@ void StateMachine::updateMoving()
 
 void StateMachine::updateTurning()
 {
-    // Faire un demi-tour pendant _turnDuration
-    
-    if (getElapsedTime() == 0) {
+    if (getElapsedTime() < kEntryWindowMs) {
         Serial.println("[StateMachine] DEMI-TOUR démarré");
-        // Tourner à gauche (tu peux changer pour droite)
-        _motor.setServoAngle(65.0f);  // Angle de braquage
+        _motor.setServoAngle(65.0f);
         _motor.setDriverCommand(kTurnSpeed);
     }
-    
-    // TODO: Maintenir la profondeur pendant le virage
-    // AsservissementPlongeon::maintainDepth(_targetDepth);
-    
+
     if (getElapsedTime() >= _turnDuration) {
         Serial.println("[StateMachine] Demi-tour terminé");
         changeState(FishState::ASCENDING);
@@ -163,19 +134,9 @@ void StateMachine::updateTurning()
 
 void StateMachine::updateAscending()
 {
-    // TODO: Intégration avec le fichier d'asservissement de remontée
-    
     Serial.println("[StateMachine] REMONTÉE en cours...");
-    
-    // Vider le ballast pour remonter
     _motor.ballastVider();
-    
-    // TODO: Ton collègue devra implémenter :
-    // if (AsservissementPlongeon::isAtSurface()) {
-    //     changeState(FishState::COMPLETED);
-    // }
-    
-    // SIMULATION : après 5 secondes, on considère qu'on est remonté
+
     if (getElapsedTime() > 5000) {
         Serial.println("[StateMachine] Surface atteinte !");
         changeState(FishState::COMPLETED);
@@ -184,8 +145,7 @@ void StateMachine::updateAscending()
 
 void StateMachine::updateEmergency()
 {
-    // On remonte coûte que coûte
-    if (getElapsedTime() == 0) {
+    if (getElapsedTime() < kEntryWindowMs) {
         Serial.println("[StateMachine] === EMERGENCY ===");
         if (_emergency == EmergencyState::LEAK) {
             Serial.println("[StateMachine] Cause: LEAK");
@@ -194,33 +154,24 @@ void StateMachine::updateEmergency()
         }
     }
 
-    // Remontée : ballast en vidange
     _motor.ballastVider();
-
-    // Sécurité propulsion / direction (à ajuster selon ton choix)
-    _motor.setServoAngle(90.0f);     // neutre
-    _motor.setDriverCommand(0.0f);   // stop moteur principal
-
-    // Option : tu peux décider de passer en COMPLETED après X secondes,
-    // ou rester en EMERGENCY jusqu'à reset manuel.
-    // Ici : on reste en EMERGENCY (le plus safe).
+    _motor.setServoAngle(90.0f);
+    _motor.setDriverCommand(0.0f);
 }
-
 
 void StateMachine::updateCompleted()
 {
-    if (getElapsedTime() == 0) {
+    if (getElapsedTime() < kEntryWindowMs) {
         Serial.println("[StateMachine] === MISSION TERMINÉE ===");
         _motor.setDriverCommand(0.0f);
         _motor.setServoAngle(90.0f);
     }
-    
-    // Mission terminée, on reste en surface
+
     _isRunning = false;
 }
 
 // ==========================================
-// HELPERS
+// Helpers
 // ==========================================
 
 void StateMachine::changeState(FishState newState)
@@ -238,7 +189,6 @@ unsigned long StateMachine::getElapsedTime() const
 void StateMachine::printStateChange(FishState newState)
 {
     Serial.print("[StateMachine] Transition → ");
-    
     switch (newState)
     {
         case FishState::IDLE:       Serial.println("IDLE"); break;
@@ -248,6 +198,5 @@ void StateMachine::printStateChange(FishState newState)
         case FishState::ASCENDING:  Serial.println("ASCENDING"); break;
         case FishState::COMPLETED:  Serial.println("COMPLETED"); break;
         case FishState::EMERGENCY:  Serial.println("EMERGENCY"); break;
-
     }
 }

@@ -24,15 +24,23 @@ EmergencyState Safety::update(const Capteurs& capteurs)
   // 2) BATTERIE (on lit juste le % via une méthode)
   float batPercent = capteurs.getBatteryPercent();
 
-  if (batPercent < kBatTripPercent) {
-    if (_lowBatStartMs == 0) _lowBatStartMs = millis();
-    if (millis() - _lowBatStartMs >= kBatDelayMs) {
-      _latched = EmergencyState::BATTERY;
-      return _latched;
-    }
-  } else {
-    _lowBatStartMs = 0;
+// ✅ Si le capteur batterie n'est pas dispo / pas initialisé, on ignore la condition batterie.
+// On considère "invalide" : <= 0, > 100, ou NaN.
+if (!(batPercent > 0.0f && batPercent <= 100.0f)) {
+  _lowBatStartMs = 0;
+  return EmergencyState::NONE;
+}
+
+if (batPercent < kBatTripPercent) {
+  if (_lowBatStartMs == 0) _lowBatStartMs = millis();
+  if (millis() - _lowBatStartMs >= kBatDelayMs) {
+    _latched = EmergencyState::BATTERY;
+    return _latched;
   }
+} else {
+  _lowBatStartMs = 0;
+}
+
 
   return EmergencyState::NONE;
 }
