@@ -3,11 +3,23 @@
 #include "Controller.h"
 #include "Capteurs.h"
 #include "Wifi.h"
+#include "Safety.h"
+#include "StateMachine.h"
 
 // Objets globaux
 CommandMotor commandMotor;
+Safety safety;
 Controller   controller(commandMotor);
-Capteurs     capteurs;
+Capteurs capteurs(
+  0x28,    // BNO055
+  0x40,    // INA batterie (SoC)
+  0x41,    // INA mesure
+  0x27,    // HIH
+  0x76,    // MS5837
+  2200.0f  // capacité batterie (mAh)
+);
+StateMachine stateMachine(commandMotor, capteurs, safety);
+
 
 void setup() {
   Serial.begin(115200);
@@ -36,9 +48,13 @@ void setup() {
   Serial.println("[SETUP] Calibration capteurs...");
   capteurs.calibrate(true);
 
+  safety.begin();
+
   // ----- Init Wifi -----
   Serial.println("Init Wifi...");
   setupWifi();
+
+  stateMachine.begin();
 
   Serial.println("[SETUP] OK. Pret.");
   Serial.println();
@@ -63,8 +79,22 @@ void loop() {
   capteurs.update();
   //capteurs.printDebug();
 
+  EmergencyState e = safety.update(capteurs);
+
   // 4) Wifi : traitement des requêtes HTTP
   gestionServeurWeb(controller, capteurs);
+
+   // ---- TEST EMERGENCY ----
+  if (Serial.available()) {
+    char c = Serial.read();
+
+    if (c == 'e') {
+      Serial.println("!!! EMERGENCY STATE TRIGGERED !!!");
+      stateMachine.setEmergency(EmergencyState::LEAK);
+    }
+  }
+
+  stateMachine.update();
 
   // 5A) petite pause pour ne pas saturer le port série
   delay(50);

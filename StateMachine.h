@@ -1,75 +1,67 @@
-//
-//  StateMachine.h
-//  Poisson_cpp
-//
-//  Created by Léa Manu on 10/12/2025.
-//
-
-#ifndef StateMachine_h
-#define StateMachine_h
+#ifndef STATEMACHINE_H_
+#define STATEMACHINE_H_
 
 #include <Arduino.h>
 #include "CommandMotor.h"
+#include "Safety.h"
+#include "Capteurs.h"
 
-// États possibles du poisson
 enum class FishState
 {
-    IDLE,           // En attente / surface
-    DESCENDING,     // Descente avec ballast + PID profondeur
-    MOVING,         // Navigation à profondeur stable
-    TURNING,        // Demi-tour
-    ASCENDING,      // Remontée
-    COMPLETED       // Mission terminée
+  IDLE,
+  DESCENDING,
+  MOVING,
+  TURNING,
+  ASCENDING,
+  COMPLETED,
+  EMERGENCY
 };
 
 class StateMachine
 {
 public:
-    StateMachine(CommandMotor& motor);
-    
-    void begin();
-    void update();  // À appeler dans la boucle principale
-    
-    // Démarrage/arrêt de la mission autonome
-    void startMission();
-    void stopMission();
-    
-    bool isRunning() const { return _isRunning; }
-    FishState getCurrentState() const { return _currentState; }
-    
-    // Paramètres de mission (à ajuster selon besoins)
-    void setTargetDepth(float depth) { _targetDepth = depth; }
-    void setMoveDuration(unsigned long durationMs) { _moveDuration = durationMs; }
-    void setTurnDuration(unsigned long durationMs) { _turnDuration = durationMs; }
-    
+  StateMachine(CommandMotor& motor, Capteurs& capteurs, Safety& safety);
+
+  void begin();
+  void update();
+
+  void startMission();
+  void stopMission();
+
+  bool isRunning() const { return _isRunning; }
+  FishState getCurrentState() const { return _currentState; }
+
+  void setEmergency(EmergencyState e);
+  EmergencyState getEmergency() const { return _emergency; }
+
 private:
-    CommandMotor& _motor;
-    
-    FishState _currentState;
-    bool _isRunning;
-    
-    // Timers
-    unsigned long _stateStartTime;
-    
-    // Paramètres de mission
-    float _targetDepth;           // Profondeur cible (en mètres ou cm)
-    unsigned long _moveDuration;  // Durée d'avancement (ms)
-    unsigned long _turnDuration;  // Durée du demi-tour (ms)
-    
-    // Transitions d'états
-    void changeState(FishState newState);
-    
-    // Méthodes de chaque état
-    void updateIdle();
-    void updateDescending();
-    void updateMoving();
-    void updateTurning();
-    void updateAscending();
-    void updateCompleted();
-    
-    // Helpers
-    unsigned long getElapsedTime() const;
-    void printStateChange(FishState newState);
+  CommandMotor& _motor;
+  Capteurs&     _capteurs;
+  Safety&       _safety;
+
+  FishState _currentState = FishState::IDLE;
+  bool _isRunning = false;
+
+  unsigned long _stateStartTime = 0;
+
+  float _targetDepth = 1.0f;
+  unsigned long _moveDuration = 10000;
+  unsigned long _turnDuration = 3000;
+
+  EmergencyState _emergency = EmergencyState::NONE;
+
+  void changeState(FishState newState);
+
+  void updateIdle();
+  void updateDescending();
+  void updateMoving();
+  void updateTurning();
+  void updateAscending();
+  void updateCompleted();
+  void updateEmergency();
+
+  unsigned long getElapsedTime() const;
+  void printStateChange(FishState newState);
 };
 
-#endif /* StateMachine_h */
+#endif // STATEMACHINE_H_
