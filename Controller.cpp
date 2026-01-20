@@ -16,9 +16,10 @@ static constexpr float kAngleStraight = 90.0f;
 static constexpr float kAngleLeft     = 90.0f - 25.0f;
 static constexpr float kAngleRight    = 90.0f + 25.0f;
 
-Controller::Controller(CommandMotor& motor)
+Controller::Controller(CommandMotor& motor, StateMachine& stateMachine)
     : _motor(motor),
       _mode(ControlMode::MANUAL),
+      _stateMachine(stateMachine),
       _lastManualCmd(CommandType::STOP)
 {
 }
@@ -32,10 +33,15 @@ void Controller::begin()
 void Controller::update()
 {
     if (_mode == ControlMode::AUTONOMOUS) {
-        // Future intégration :
-        // - StateMachine
-        // - Capteurs
-    }
+            // On fait tourner la machine
+            _stateMachine.update();
+            
+            // NOUVEAU : Si la mission est finie, on repasse en manuel
+            if (_stateMachine.isMissionFinished()) {
+                Serial.println("[Controller] Mission terminée -> Retour en MANUEL");
+                exitAutonomousMode();
+            }
+        }
 }
 
 void Controller::onKey(char key)
@@ -161,18 +167,20 @@ void Controller::stop()
 void Controller::enterAutonomousMode()
 {
     _mode = ControlMode::AUTONOMOUS;
+        Serial.println("[Controller] Mode AUTONOME ON");
 
-    Serial.println("[Controller] Mode AUTONOME ON");
-
-    // comportement simple par défaut
-    goStraight(0.5f);
+        // Lancement officiel de la mission
+        _stateMachine.startMission();
 }
 
 void Controller::exitAutonomousMode()
 {
     _mode = ControlMode::MANUAL;
+        Serial.println("[Controller] Mode MANUEL ON");
 
-    Serial.println("[Controller] Mode MANUEL ON");
+        // Arrêt immédiat de la mission autonome
+        _stateMachine.stopMission();
 
-    applyManualCommand(_lastManualCmd);
+        // On réapplique la dernière commande manuelle connue
+        applyManualCommand(_lastManualCmd);
 }

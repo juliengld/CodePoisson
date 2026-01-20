@@ -9,6 +9,7 @@
 
 #include <Arduino.h>
 #include "CommandMotor.h"   // ou CommandMotor.hpp selon fichier réel
+#include "StateMachine.h"
 
 // ----- Modes -----
 enum class ControlMode {
@@ -31,7 +32,7 @@ class Controller
 {
 public:
     // Le controller a besoin d’un accès au moteur :
-    Controller(CommandMotor& motor);
+    Controller(CommandMotor& motor, StateMachine& stateMachine);
 
     void begin();
     void update();
@@ -61,6 +62,7 @@ private:
 
     ControlMode _mode;
     CommandType _lastManualCmd;
+    StateMachine& _stateMachine;
 };
 
 #endif

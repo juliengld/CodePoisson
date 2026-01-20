@@ -3,11 +3,15 @@
 #include "Controller.h"
 #include "Capteurs.h"
 #include "Wifi.h"
+<<<<<<< Updated upstream
 #include "Safety.h"
+=======
+>>>>>>> Stashed changes
 #include "StateMachine.h"
 
 // Objets globaux
 CommandMotor commandMotor;
+<<<<<<< Updated upstream
 Safety safety;
 Controller   controller(commandMotor);
 Capteurs capteurs(
@@ -20,6 +24,11 @@ Capteurs capteurs(
 );
 StateMachine stateMachine(commandMotor, capteurs, safety);
 
+=======
+StateMachine machine(commandMotor);
+Controller   controller(commandMotor, machine);
+Capteurs     capteurs;
+>>>>>>> Stashed changes
 
 void setup() {
   Serial.begin(115200);

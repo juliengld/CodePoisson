@@ -20,6 +20,7 @@ enum class FishState
 class StateMachine
 {
 public:
+<<<<<<< Updated upstream
   StateMachine(CommandMotor& motor, Capteurs& capteurs, Safety& safety);
 
   void begin();
@@ -34,6 +35,26 @@ public:
   void setEmergency(EmergencyState e);
   EmergencyState getEmergency() const { return _emergency; }
 
+=======
+    StateMachine(CommandMotor& motor);
+    
+    void begin();
+    void update();  // À appeler dans la boucle principale
+    
+    // Démarrage/arrêt de la mission autonome
+    void startMission();
+    void stopMission();
+    
+    bool isRunning() const { return _isRunning; }
+    FishState getCurrentState() const { return _currentState; }
+    bool isMissionFinished() const { return _currentState == FishState::COMPLETED; }
+    
+    // Paramètres de mission (à ajuster selon besoins)
+    void setTargetDepth(float depth) { _targetDepth = depth; }
+    void setMoveDuration(unsigned long durationMs) { _moveDuration = durationMs; }
+    void setTurnDuration(unsigned long durationMs) { _turnDuration = durationMs; }
+    
+>>>>>>> Stashed changes
 private:
   CommandMotor& _motor;
   Capteurs&     _capteurs;
