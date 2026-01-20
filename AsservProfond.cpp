@@ -2,57 +2,62 @@
 #include "Capteurs.h"
 #include "AsservProfond.h"
 
-// Implémentation du constructeur
 AsservProfond::AsservProfond(CommandMotor* motorPtr, Capteurs* capteursPtr) {
     _motor = motorPtr;
     _capteurs = capteursPtr;
     
-    // Valeurs par défaut (à ajuster selon ton robot)
-    _gainProportionnel = 10.0f; 
-    _angleNeutre = 180.0f;
+    // Le gain doit être positif si (Angle ++ => On descend)
+    // Vérifions : Angle ++ vers 180 = Remplir = Descendre. C'est OK.
+    _gainProportionnel = 30.0f; // Augmenté car on travaille sur une plage réduite
+    _angleNeutre = 30.0f;       // Correspond à ballastEquilibre()
 }
 
-// Implémentation des méthodes internes (wrappers)
 float AsservProfond::getProfondeur() {
-    // CORRECTION : On accède à la structure de données du capteur
-    return _capteurs->getDepthData().depth_m;
+    // SUPPOSITION : Vous avez ajouté getDepth() dans Capteurs
+    // Sinon utilisez _capteurs->data.depth.depth_m si 'data' est public
+    return _capteurs->getDepthData().depth_m; 
 }
-
 
 void AsservProfond::setServoAngle(float angle) {
-    // CORRECTION : Le vrai nom dans CommandMotor est setServoAngle
     _motor->setServoAngle(angle); 
 }
-// Définitions des constantes (à ajuster selon ton robot)
-#define PROFONDEUR_MAX 180.0f
-#define ANGLE_NEUTRE 180.0f  // Position du servo pour maintenir la profondeur (ou l'horizontale)
-#define GAIN_PROPORTIONNEL 10.0f // Facteur de réactivité (Kp)
+
+// Limites physiques du servo (selon CommandMotor.cpp)
 #define ANGLE_MIN 0.0f
-#define ANGLE_MAX 360.0f
+#define ANGLE_MAX 180.0f 
+#define PROFONDEUR_MAX 10.0f // Sécurité : n'essayez pas d'aller trop profond
 
 void AsservProfond::setProfondeurVoulue(float ProfMetres)
 {
-    // 1. Sécurité : Bornage de la consigne (ce que tu avais déjà fait)
+    // 1. Sécurité Bornage Consigne
     if (ProfMetres < 0.0f) ProfMetres = 0.0f;
     if (ProfMetres > PROFONDEUR_MAX) ProfMetres = PROFONDEUR_MAX;
 
-    // 2. Lecture de la profondeur actuelle via les capteurs
-    // J'assume que tu as une fonction de ce type dans Capteurs.h
-    // Exemple : float ProfActuelle = capteurs.getProfondeur();
+    // 2. Lecture
     float ProfActuelle = getProfondeur(); 
 
-    // 3. Calcul de l'erreur
+    // 3. Calcul Erreur (Consigne - Mesure)
+    // Ex: Veut 5m, est à 2m => Erreur = 3m (doit descendre)
     float erreur = ProfMetres - ProfActuelle;
 
-    // 4. Calcul de la commande (Correcteur Proportionnel simple)
-    // Si erreur > 0 (on est trop haut), on augmente l'angle pour descendre
-    // Si erreur < 0 (on est trop bas), on diminue l'angle pour remonter
-    float commandeAngle = ANGLE_NEUTRE + (erreur * GAIN_PROPORTIONNEL);
+    // 4. Commande P (Proportionnelle)
+    // AngleNeutre (30°) + (3m * Gain)
+    // Si on doit descendre (erreur > 0), on ajoute de l'angle (vers 180 = Remplir) -> CORRECT
+    // Si on doit monter (erreur < 0), on enlève de l'angle (vers 0 = Vider) -> CORRECT
+    float commandeAngle = _angleNeutre + (erreur * _gainProportionnel);
 
-    // 5. Sécurité : Bornage de la commande pour le servo 360°
+    // 5. Bornage final
     if (commandeAngle < ANGLE_MIN) commandeAngle = ANGLE_MIN;
     if (commandeAngle > ANGLE_MAX) commandeAngle = ANGLE_MAX;
 
-    // 6. Envoi de la commande au moteur
+    // 6. Envoi
     setServoAngle(commandeAngle);
+    
+    // Debug optionnel pour voir ce qui se passe
+    /*
+    Serial.print("Cible: "); Serial.print(ProfMetres);
+    Serial.print(" Actuel: "); Serial.print(ProfActuelle);
+    Serial.print(" Err: "); Serial.print(erreur);
+    Serial.print(" Cmd: "); Serial.println(commandeAngle);
+    */
 }
