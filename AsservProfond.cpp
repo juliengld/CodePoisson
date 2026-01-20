@@ -7,14 +7,11 @@ AsservProfond::AsservProfond(CommandMotor* motorPtr, Capteurs* capteursPtr) {
     _capteurs = capteursPtr;
     
     // Le gain doit être positif si (Angle ++ => On descend)
-    // Vérifions : Angle ++ vers 180 = Remplir = Descendre. C'est OK.
     _gainProportionnel = 30.0f; // Augmenté car on travaille sur une plage réduite
     _angleNeutre = 30.0f;       // Correspond à ballastEquilibre()
 }
 
 float AsservProfond::getProfondeur() {
-    // SUPPOSITION : Vous avez ajouté getDepth() dans Capteurs
-    // Sinon utilisez _capteurs->data.depth.depth_m si 'data' est public
     return _capteurs->getDepthData().depth_m; 
 }
 
@@ -24,7 +21,7 @@ void AsservProfond::setServoAngle(float angle) {
 
 // Limites physiques du servo (selon CommandMotor.cpp)
 #define ANGLE_MIN 0.0f
-#define ANGLE_MAX 180.0f 
+#define ANGLE_MAX 360.0f 
 #define PROFONDEUR_MAX 10.0f // Sécurité : n'essayez pas d'aller trop profond
 
 void AsservProfond::setProfondeurVoulue(float ProfMetres)
