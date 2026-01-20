@@ -5,6 +5,7 @@
 #include "CommandMotor.h"
 #include "Safety.h"
 #include "Capteurs.h"
+#include "AsservProfond.h"
 
 enum class FishState
 {
@@ -50,6 +51,7 @@ private:
   CommandMotor& _motor;
   Capteurs&     _capteurs;
   Safety&       _safety;
+  AsservProfond _asserv;
 
   FishState _currentState = FishState::IDLE;
   bool _isRunning = false;
