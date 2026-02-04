@@ -8,22 +8,22 @@ static const int DUREE_MOUVEMENT = 1000; // Temps en ms (1 seconde)
 CommandMotor::CommandMotor()
 {
     servo_ok = false;
-    servoDirection_ok = false; // 2e servo non initialisé par défaut
+    servoDirection_ok = false; 
 }
 
 bool CommandMotor::begin()
 {
-    // ----- Servo ballast sur D0 -----
+    // ----- Servo ballast sur SERVO_PIN (D3) -----
+    // On utilise bien les bornes 500-2500 définies dans le .h
     if (servo.attach(SERVO_PIN, pulseMin_us, pulseMax_us)) {
         servo_ok = true;
-        Serial.println("[OK] Servo SER0067 attaché sur D0");
+        Serial.println("[OK] Servo SER0067 (Ballast) attaché sur D3");
     } else {
         servo_ok = false;
-        Serial.println("[ERREUR] Impossible d’attacher le SER0067 sur D0");
+        Serial.println("[ERREUR] Impossible d’attacher le SER0067");
     }
 
     // ----- Servo direction sur SERVO_DIRECTION_PIN -----
-    // NOTE : seulement la structure ici, tu pourras compléter la logique plus tard
     if (servoDirection.attach(SERVO_DIRECTION_PIN, pulseMin_us, pulseMax_us)) {
         servoDirection_ok = true;
         Serial.println("[OK] Servo direction attaché");
@@ -35,142 +35,107 @@ bool CommandMotor::begin()
     // ----- Driver 2x PWM sur D4 / D5 -----
     pinMode(DRIVER_PWM_A, OUTPUT);
     pinMode(DRIVER_PWM_B, OUTPUT);
-
     analogWrite(DRIVER_PWM_A, 0);
     analogWrite(DRIVER_PWM_B, 0);
 
     Serial.println("[OK] Driver PWM initialisé sur D4/D5");
 
-    // même si les servos échouent, on ne bloque pas
     return true;
 }
 
+// ============================================================
+//   CŒUR DU PROBLÈME RÉSOLU ICI
+// ============================================================
 void CommandMotor::setServoAngle(float angleDeg)
 {
     if (!servo_ok) return;
 
+    // 1. On autorise la plage complète 0-360
     if (angleDeg < 0.0f)   angleDeg = 0.0f;
-    if (angleDeg > 180.0f) angleDeg = 180.0f;
+    if (angleDeg > 360.0f) angleDeg = 360.0f; 
 
-    servo.write(angleDeg);
+    // 2. On convertit l'angle en microsecondes manuellement
+    // Car servo.write(270) ne fonctionne pas toujours sur la librairie standard
+    // 0° -> 500us | 360° -> 2500us
+    int pulseWidth = map((long)angleDeg, 0, 360, pulseMin_us, pulseMax_us);
+
+    // 3. Envoi précis
+    servo.writeMicroseconds(pulseWidth);
 }
 
 // ============================================================
-//   GESTION BALLAST PAR SERVO + CREMAILLERE
+//   GESTION BALLAST (Mis à jour pour 360°)
 // ============================================================
 
 void CommandMotor::ballastVider()
 {
-    if (!servo_ok) {
-        return;
-    }
-
-    float angleEmptyDeg = 0.0f; // à ajuster avec ta géométrie
-    setServoAngle(angleEmptyDeg);
+    if (!servo_ok) return;
+    // 0° = Seringue vide (piston rentré ou sorti selon montage)
+    setServoAngle(0.0f); 
 }
 
 void CommandMotor::ballastRemplir()
 {
-    if (!servo_ok) {
-        return;
-    }
-
-    float angleFullDeg = 180.0f; // valeur fictive, à ajuster
-    setServoAngle(angleFullDeg);
+    if (!servo_ok) return;
+    // 360° = Seringue pleine (course max)
+    setServoAngle(360.0f); 
 }
+
 void CommandMotor::ballastEquilibre()
 {
-    if (!servo_ok) {
-        return;
-    }
-
-    float angleFullDeg = 30.0f; // valeur fictive, à ajuster
-    setServoAngle(angleFullDeg);
+    if (!servo_ok) return;
+    // Position neutre théorique
+    setServoAngle(180.0f); 
 }
 
 // ============================================================
-//   GESTION SERVO DE DIRECTION (2e servo) – SQUELETTE SEULEMENT
+//   GESTION SERVO DE DIRECTION (Inchangé)
 // ============================================================
-
-// ... (Haut du fichier inchangé) ...
-
-
 
 void CommandMotor::servoDirectionDroite()
 {
-    // Si on est déjà braqué à droite, on ne fait rien (on attend que la touche soit relâchée)
     if (etatDirection == 1) return;
-
-    // Si on était à gauche, on revient d'abord au centre (sécurité optionnelle)
     if (etatDirection == -1) servoDirectionStop();
 
-    Serial.println("[Motor] Braquage DROITE en cours...");
-    
-    // 1. On tourne le FT90R (Vitesse sens horaire)
+    Serial.println("[Motor] Braquage DROITE...");
     servoDirection.write(0); 
-    
-    // 2. On attend le temps qu'il fasse le mouvement
     delay(DUREE_MOUVEMENT);
-    
-    // 3. On coupe le moteur (il arrête de forcer, mais la crémaillère est en position)
     servoDirection.write(90); 
-    
-    // 4. On note l'état
     etatDirection = 1; 
-    //Serial.println("[Motor] Braquage DROITE terminé (attente).");
 }
 
 void CommandMotor::servoDirectionGauche()
 {
-    // Si on est déjà braqué à gauche, on ne fait rien
     if (etatDirection == -1) return;
-
-    // Si on était à droite, on revient d'abord au centre
     if (etatDirection == 1) servoDirectionStop();
 
-    Serial.println("[Motor] Braquage GAUCHE en cours...");
-    
-    // 1. On tourne le FT90R (Vitesse sens anti-horaire)
+    Serial.println("[Motor] Braquage GAUCHE...");
     servoDirection.write(180); 
-    
-    // 2. On attend
     delay(DUREE_MOUVEMENT);
-    
-    // 3. On coupe
     servoDirection.write(90); 
-    
-    // 4. On note l'état
     etatDirection = -1;
-    //Serial.println("[Motor] Braquage GAUCHE terminé (attente).");
 }
 
-// Fonction pour revenir au centre (à ajouter)
 void CommandMotor::servoDirectionStop()
 {
-    if (etatDirection == 0) return; // Déjà au centre
+    if (etatDirection == 0) return; 
 
     Serial.println("[Motor] Retour au CENTRE...");
-
     if (etatDirection == 1) {
-        // On était à Droite, on tourne à Gauche pour revenir
         servoDirection.write(180);
         delay(DUREE_MOUVEMENT);
         servoDirection.write(90);
     }
     else if (etatDirection == -1) {
-        // On était à Gauche, on tourne à Droite pour revenir
         servoDirection.write(0);
         delay(DUREE_MOUVEMENT);
         servoDirection.write(90);
     }
-
-    // On est revenu au centre
     etatDirection = 0;
-    Serial.println("[Motor] Retour CENTRE terminé.");
 }
 
 // ============================================================
-//   DRIVER 2x PWM
+//   DRIVER 2x PWM (Inchangé)
 // ============================================================
 
 void CommandMotor::setDriverRaw(uint8_t pwm4, uint8_t pwm5)
@@ -181,13 +146,8 @@ void CommandMotor::setDriverRaw(uint8_t pwm4, uint8_t pwm5)
 
 void CommandMotor::setDriverCommand(float command)
 {
-    // Commande normalisée [0 ; 1]
     if (command < 0.0f) command = 0.0f;
     if (command > 1.0f) command = 1.0f;
-
-    // Conversion en PWM 0–255
     uint8_t pwm = (uint8_t)(command * 255.0f + 0.5f);
-
-    // Moteur UNIQUEMENT en marche avant : D4 = PWM, D5 = 0
     setDriverRaw(pwm, 0);
 }
