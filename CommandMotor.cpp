@@ -14,7 +14,6 @@ CommandMotor::CommandMotor()
 bool CommandMotor::begin()
 {
     // ----- Servo ballast sur SERVO_PIN (D3) -----
-    // On utilise bien les bornes 500-2500 définies dans le .h
     if (servo.attach(SERVO_PIN, pulseMin_us, pulseMax_us)) {
         servo_ok = true;
         Serial.println("[OK] Servo SER0067 (Ballast) attaché sur D3");
@@ -43,54 +42,40 @@ bool CommandMotor::begin()
     return true;
 }
 
-// ============================================================
-//   CŒUR DU PROBLÈME RÉSOLU ICI
-// ============================================================
 void CommandMotor::setServoAngle(float angleDeg)
 {
     if (!servo_ok) return;
 
-    // 1. On autorise la plage complète 0-360
     if (angleDeg < 0.0f)   angleDeg = 0.0f;
     if (angleDeg > 360.0f) angleDeg = 360.0f; 
 
-    // 2. On convertit l'angle en microsecondes manuellement
-    // Car servo.write(270) ne fonctionne pas toujours sur la librairie standard
-    // 0° -> 500us | 360° -> 2500us
     int pulseWidth = map((long)angleDeg, 0, 360, pulseMin_us, pulseMax_us);
 
-    // 3. Envoi précis
     servo.writeMicroseconds(pulseWidth);
 }
 
-// ============================================================
-//   GESTION BALLAST (Mis à jour pour 360°)
-// ============================================================
+// BALLAST 
 
 void CommandMotor::ballastVider()
 {
     if (!servo_ok) return;
-    // 0° = Seringue vide (piston rentré ou sorti selon montage)
+    // 0° = Seringue vide (piston rentré ou sorti)
     setServoAngle(0.0f); 
 }
 
 void CommandMotor::ballastRemplir()
 {
     if (!servo_ok) return;
-    // 360° = Seringue pleine (course max)
+    // 360° = Seringue pleine
     setServoAngle(360.0f); 
 }
 
 void CommandMotor::ballastEquilibre()
 {
     if (!servo_ok) return;
-    // Position neutre théorique
+    // Position neutre
     setServoAngle(180.0f); 
 }
-
-// ============================================================
-//   GESTION SERVO DE DIRECTION (Inchangé)
-// ============================================================
 
 void CommandMotor::servoDirectionDroite()
 {
@@ -133,10 +118,6 @@ void CommandMotor::servoDirectionStop()
     }
     etatDirection = 0;
 }
-
-// ============================================================
-//   DRIVER 2x PWM (Inchangé)
-// ============================================================
 
 void CommandMotor::setDriverRaw(uint8_t pwm4, uint8_t pwm5)
 {
