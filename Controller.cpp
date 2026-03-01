@@ -11,7 +11,7 @@
 static constexpr float kForwardSpeed = 0.8f;     // 80%
 static constexpr float kTurnSpeed    = 0.6f;     // 60%
 
-// Servo 0–180° → 90° = neutre
+//  90° = neutre
 static constexpr float kAngleStraight = 90.0f;
 static constexpr float kAngleLeft     = 90.0f - 25.0f;
 static constexpr float kAngleRight    = 90.0f + 25.0f;
@@ -27,16 +27,13 @@ Controller::Controller(CommandMotor& motor, StateMachine& stateMachine)
 void Controller::begin()
 {
     Serial.println("[Controller] Initialisation");
-    stop();  // Sécurité
+    stop(); 
 }
 
 void Controller::update()
 {
     if (_mode == ControlMode::AUTONOMOUS) {
-            // On fait tourner la machine
             _stateMachine.update();
-            
-            // NOUVEAU : Si la mission est finie, on repasse en manuel
             if (_stateMachine.isMissionFinished()) {
                 Serial.println("[Controller] Mission terminée -> Retour en MANUEL");
                 exitAutonomousMode();
@@ -46,7 +43,6 @@ void Controller::update()
 
 void Controller::onKey(char key)
 {
-    // ------- Touches normales -------
     CommandType cmd = CommandType::NONE;
 
     switch (key)
@@ -58,7 +54,7 @@ void Controller::onKey(char key)
         case 'a': case 'A': cmd = CommandType::TOGGLE_AUTONOMOUS; break;
         //case 'f': case 'F': cmd = CommandType::DESCEND; break;
         default:
-            return; // touche inconnue
+            return; 
     }
 
     onCommand(cmd);
@@ -78,7 +74,6 @@ void Controller::onCommand(CommandType cmd)
         applyManualCommand(cmd);
     }
     else {
-        // En autonome on ignore les commandes manuelles sauf STOP
         if (cmd == CommandType::STOP) stop();
     }
 }
@@ -119,7 +114,6 @@ void Controller::applyManualCommand(CommandType cmd)
     }
 }
 
-// ---- Implémentation bas niveau ----
 
 void Controller::goStraight(float speed)
 {
@@ -130,25 +124,18 @@ void Controller::goStraight(float speed)
 
 void Controller::turnLeft(float speed)
 {
-    // Ancienne ligne (à commenter ou supprimer) :
+    // Ancienne ligne:
     // _motor.setServoAngle(kAngleLeft);
-    
-    // NOUVELLE LIGNE : Appelle la fonction du FT90R
+
     _motor.servoDirectionGauche();
-    
-    // On active aussi le moteur principal si tu veux avancer en tournant
     _motor.setDriverCommand(speed);
 }
 
 void Controller::turnRight(float speed)
 {
-    // Ancienne ligne (à commenter ou supprimer) :
+    // Ancienne ligne :
     // _motor.setServoAngle(kAngleRight);
-    
-    // NOUVELLE LIGNE : Appelle la fonction du FT90R
     _motor.servoDirectionDroite();
-    
-    // On active aussi le moteur principal
     _motor.setDriverCommand(speed);
 }
 
@@ -162,14 +149,11 @@ void Controller::stop()
     //Serial.println("[Controller] MANUAL → STOP (Propulsion + Direction)");
 }
 
-// ---- Gestion du mode autonome ----
-
 void Controller::enterAutonomousMode()
 {
     _mode = ControlMode::AUTONOMOUS;
         Serial.println("[Controller] Mode AUTONOME ON");
 
-        // Lancement officiel de la mission
         _stateMachine.startMission();
 }
 
@@ -178,9 +162,7 @@ void Controller::exitAutonomousMode()
     _mode = ControlMode::MANUAL;
         Serial.println("[Controller] Mode MANUEL ON");
 
-        // Arrêt immédiat de la mission autonome
         _stateMachine.stopMission();
 
-        // On réapplique la dernière commande manuelle connue
         applyManualCommand(_lastManualCmd);
 }
