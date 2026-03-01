@@ -1,6 +1,5 @@
 #include "StateMachine.h"
 
-// ---- Paramètres par défaut ----
 static constexpr float kDefaultTargetDepth = 0.3f; // 30 cm 
 static constexpr unsigned long kDefaultMoveDuration = 10000;
 static constexpr unsigned long kDefaultTurnDuration = 3000;
@@ -8,23 +7,18 @@ static constexpr unsigned long kDefaultTurnDuration = 3000;
 static constexpr float kMoveSpeed = 0.7f;
 static constexpr float kTurnSpeed = 0.6f;
 
-// évite le bug getElapsedTime()==0 et le spam série
 static constexpr unsigned long kEntryWindowMs = 50;
 
-// Seuil pour considérer qu'on a atteint la profondeur (ex: +/- 10cm)
 static constexpr float kDepthMargin = 0.10f; 
 
-// Seuil pour considérer qu'on est en surface (ex: < 20cm)
 static constexpr float kSurfaceDepth = 0.20f;
 
 
-// --- CONSTRUCTEUR ---
-// Note : On passe les adresses (&motor, &capteurs) à l'asservissement
 StateMachine::StateMachine(CommandMotor& motor, Capteurs& capteurs, Safety& safety)
     : _motor(motor),
       _capteurs(capteurs),
       _safety(safety),
-      _asserv(&motor, &capteurs), // <--- INITIALISATION DE L'ASSERV
+      _asserv(&motor, &capteurs), 
       _currentState(FishState::IDLE),
       _isRunning(false),
       _stateStartTime(0),
@@ -46,7 +40,6 @@ void StateMachine::begin()
 
 void StateMachine::setEmergency(EmergencyState e)
 {
-    // latch : on garde l'erreur tant qu'on ne reset pas
     if (_emergency == EmergencyState::NONE) {
         _emergency = e;
     }
@@ -54,7 +47,6 @@ void StateMachine::setEmergency(EmergencyState e)
 
 void StateMachine::update()
 {
-    // Safety centralise fuite + batterie + latch + delay
     EmergencyState e = _safety.update(_capteurs);
     if (e != EmergencyState::NONE) {
         setEmergency(e);
@@ -64,7 +56,6 @@ void StateMachine::update()
         changeState(FishState::EMERGENCY);
     }
 
-    // on laisse EMERGENCY tourner même si mission pas lancée
     if (!_isRunning && _currentState != FishState::EMERGENCY) return;
 
     switch (_currentState)
@@ -94,9 +85,6 @@ void StateMachine::stopMission()
     changeState(FishState::IDLE);
 }
 
-// ==========================================
-// États
-// ==========================================
 
 void StateMachine::updateIdle()
 {
@@ -111,20 +99,16 @@ void StateMachine::updateDescending()
         Serial.println("m ...");
     }
 
-    // 1. APPEL DE L'ASSERVISSEMENT
     _asserv.setProfondeurVoulue(_targetDepth);
 
-    // 2. VÉRIFICATION : Est-on arrivé ?
     float currentDepth = _capteurs.getDepthData().depth_m;
     float error = abs(currentDepth - _targetDepth);
 
-    // Si on est proche de la cible (marge de 10cm)
     if (error < kDepthMargin) {
         Serial.println("[StateMachine] Profondeur cible atteinte !");
         changeState(FishState::MOVING);
     }
 
-    // Sécurité : Timeout de 30 secondes si on n'arrive jamais à descendre
     if (getElapsedTime() > 30000) {
         Serial.println("[StateMachine] TIMEOUT Descente -> Force Moving");
         changeState(FishState::MOVING);
@@ -135,11 +119,10 @@ void StateMachine::updateMoving()
 {
     if (getElapsedTime() < kEntryWindowMs) {
         Serial.println("[StateMachine] AVANCEMENT démarré");
-        _motor.setServoAngle(90.0f); // Optionnel car l'asserv va reprendre la main
+        _motor.setServoAngle(90.0f); 
         _motor.setDriverCommand(kMoveSpeed);
     }
 
-    // MAINTIEN DE LA PROFONDEUR pendant qu'on avance
     _asserv.setProfondeurVoulue(_targetDepth);
 
     if (getElapsedTime() >= _moveDuration) {
@@ -152,11 +135,10 @@ void StateMachine::updateTurning()
 {
     if (getElapsedTime() < kEntryWindowMs) {
         Serial.println("[StateMachine] DEMI-TOUR démarré");
-        _motor.setServoAngle(65.0f); // Optionnel car l'asserv va reprendre la main
+        _motor.setServoAngle(65.0f); 
         _motor.setDriverCommand(kTurnSpeed);
     }
 
-    // MAINTIEN DE LA PROFONDEUR pendant le virage
     _asserv.setProfondeurVoulue(_targetDepth);
 
     if (getElapsedTime() >= _turnDuration) {
@@ -169,21 +151,16 @@ void StateMachine::updateAscending()
 {
     if (getElapsedTime() < kEntryWindowMs) {
         Serial.println("[StateMachine] REMONTÉE en cours...");
-        // Pour remonter, on vide le ballast à fond (sécurité max)
-        // On pourrait utiliser l'asserv avec setProfondeurVoulue(0.0), 
-        // mais ballastVider est plus sûr pour garantir la flottaison.
         _motor.ballastVider();
     }
 
-    // VÉRIFICATION : Est-on en surface ?
     float currentDepth = _capteurs.getDepthData().depth_m;
 
-    if (currentDepth < kSurfaceDepth) { // Si on est à moins de 20cm de la surface
+    if (currentDepth < kSurfaceDepth) { 
         Serial.println("[StateMachine] Surface atteinte (Capteur) !");
         changeState(FishState::COMPLETED);
     }
     
-    // Sécurité temps (si le capteur déconne)
     if (getElapsedTime() > 15000) {
         Serial.println("[StateMachine] Surface atteinte (Timeout) !");
         changeState(FishState::COMPLETED);
@@ -216,10 +193,6 @@ void StateMachine::updateCompleted()
 
     _isRunning = false;
 }
-
-// ==========================================
-// Helpers
-// ==========================================
 
 void StateMachine::changeState(FishState newState)
 {
